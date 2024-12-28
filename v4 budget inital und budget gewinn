@@ -1,0 +1,80 @@
+Sicher! Hier ist eine erweiterte Version des Trading-Bots, bei der wir zwischen dem initialen Budget von CHF 200 und den Gewinnen, die durch Trading erzielt werden, unterscheiden:
+
+```python
+import alpaca_trade_api as tradeapi
+import pandas as pd
+import yfinance as yf
+import requests
+
+# API-Schlüssel und Geheimnisse
+API_KEY = 'dein_api_key'
+API_SECRET = 'dein_api_secret'
+BASE_URL = 'https://paper-api.alpaca.markets'
+
+# Verbindung zu Alpaca herstellen
+api = tradeapi.REST(API_KEY, API_SECRET, BASE_URL, api_version='v2')
+
+# Yahoo Finance Daten abrufen
+data = yf.download('CO', start='2023-01-01', end='2023-12-31')
+
+# Schweizer Wirtschaftsdaten abrufen
+response = requests.get('https://api.tradingeconomics.com/api/indicator/switzerland/gdp-growth-rate')
+swiss_gdp_growth = response.json()['data']
+
+# Indikatoren berechnen
+data['SMA_20'] = data['Close'].rolling(window=20).mean()
+data['RSI'] = 100 - (100 / (1 + (data['Close'].diff(14).abs() / data['Close'].diff(14).abs().rolling(window=14).mean())))
+data['MACD'] = data['Close'].ewm(span=12, adjust=False).mean() - data['Close'].ewm(span=26, adjust=False).mean()
+data['MACD_Signal'] = data['MACD'].ewm(span=9, adjust=False).mean()
+
+# Branchenfilter hinzufügen
+pharma_companies = ['Company1', 'Company2']  # Ersetze dies mit den tatsächlichen Pharma-Unternehmen
+tech_companies = ['Company3', 'Company4']  # Ersetze dies mit den tatsächlichen Tech-Unternehmen
+
+data['Industry'] = 'Unknown'
+data.loc[data['Symbol'].isin(pharma_companies), 'Industry'] = 'Pharma'
+data.loc[data['Symbol'].isin(tech_companies), 'Industry'] = 'Tech'
+
+# Kauf- und Verkaufssignale generieren
+data['Buy_Signal'] = (data['Close'] > data['SMA_20']) & (data['RSI'] < 30) & (data['MACD'] > data['MACD_Signal']) & (data['Industry'].isin(['Pharma', 'Tech']))
+data['Sell_Signal'] = (data['Close'] < data['SMA_20']) & (data['RSI'] > 70) & (data['MACD'] < data['MACD_Signal']) & (data['Industry'].isin(['Pharma', 'Tech']))
+
+# Initial Budget und Gewinn Budget
+initial_budget = 200  # CHF 200 initiales Budget
+profit_budget = 0  # Anfangs kein Profit
+
+# Handelslogik mit Budget-Check
+def trading_logic():
+    global initial_budget, profit_budget
+    for index, row in data.iterrows():
+        if row['Buy_Signal'] and initial_budget >= row['Close']:
+            qty = initial_budget // row['Close']
+            initial_budget -= qty * row['Close']
+            api.submit_order(
+                symbol=row['Symbol'],
+                qty=qty,
+                side='buy',
+                type='market',
+                time_in_force='gtc'
+            )
+        elif row['Sell_Signal']:
+            qty = 1  # Anpassung nach Bedarf
+            sale_price = qty * row['Close']
+            profit_budget += sale_price
+            api.submit_order(
+                symbol=row['Symbol'],
+                qty=qty,
+                side='sell',
+                type='market',
+                time_in_force='gtc'
+            )
+
+# Trading-Bot ausführen
+while True:
+    trading_logic()
+    time.sleep(60)  # Warten Sie 1 Minute, bevor Sie erneut überprüfen
+```
+
+In dieser erweiterten Version unterscheiden wir zwischen dem initialen Budget von CHF 200 und dem Gewinnbudget, das durch den Handelserlös erzielt wird. Das initiale Budget wird verwendet, um die ersten Trades durchzuführen, und das Gewinnbudget wird durch den Verkauf von Aktien erhöht.
+
+Hast du noch weitere Fragen oder benötigst du zusätzliche Anpassungen? 😊
