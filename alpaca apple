@@ -1,0 +1,25 @@
+import alpaca_trade_api as tradeapi
+
+# API-Schlüssel und Geheimnis
+API_KEY = 'dein_api_schlüssel'
+API_SECRET = 'dein_api_geheimnis'
+BASE_URL = 'https://paper-api.alpaca.markets'
+
+# API-Client initialisieren
+api = tradeapi.REST(API_KEY, API_SECRET, BASE_URL, api_version='v2')
+
+# Kontoinformationen abrufen
+account = api.get_account()
+print(account)
+
+# Beispiel für eine Handelsstrategie: Kauf von 10 Aktien von AAPL
+symbol = 'AAPL'
+quantity = 10
+order = api.submit_order(
+    symbol=symbol,
+    qty=quantity,
+    side='buy',
+    type='market',
+    time_in_force='gtc'
+)
+print(order)
