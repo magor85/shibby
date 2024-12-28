@@ -1,0 +1,47 @@
+import alpaca_trade_api as tradeapi
+import pandas as pd
+import yfinance as yf
+
+# API-Schlüssel und Geheimnisse
+API_KEY = 'dein_api_key'
+API_SECRET = 'dein_api_secret'
+BASE_URL = 'https://paper-api.alpaca.markets'
+
+# Verbindung zu Alpaca herstellen
+api = tradeapi.REST(API_KEY, API_SECRET, BASE_URL, api_version='v2')
+
+# Yahoo Finance Daten abrufen
+data = yf.download('CO', start='2023-01-01', end='2023-12-31')
+
+# Indikatoren berechnen
+data['SMA_20'] = data['Close'].rolling(window=20).mean()
+data['RSI'] = 100 - (100 / (1 + (data['Close'].diff(14).abs() / data['Close'].diff(14).abs().rolling(window=14).mean())))
+
+# Kauf- und Verkaufssignale generieren
+data['Buy_Signal'] = (data['Close'] > data['SMA_20']) & (data['RSI'] < 30)
+data['Sell_Signal'] = (data['Close'] < data['SMA_20']) & (data['RSI'] > 70)
+
+# Handelslogik
+def trading_logic():
+    for index, row in data.iterrows():
+        if row['Buy_Signal']:
+            api.submit_order(
+                symbol='CO',
+                qty=1,
+                side='buy',
+                type='market',
+                time_in_force='gtc'
+            )
+        elif row['Sell_Signal']:
+            api.submit_order(
+                symbol='CO',
+                qty=1,
+                side='sell',
+                type='market',
+                time_in_force='gtc'
+            )
+
+# Trading-Bot ausführen
+while True:
+    trading_logic()
+    time.sleep(60)  # Warten Sie 1 Minute, bevor Sie erneut überprüfen
