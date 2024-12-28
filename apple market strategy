@@ -1,0 +1,54 @@
+import alpaca_trade_api as tradeapi
+import pandas as pd
+
+# API-Schlüssel und Geheimnis
+API_KEY = 'dein_api_schlüssel'
+API_SECRET = 'dein_api_geheimnis'
+BASE_URL = 'https://paper-api.alpaca.markets'
+
+# API-Client initialisieren
+api = tradeapi.REST(API_KEY, API_SECRET, BASE_URL, api_version='v2')
+
+# Funktion zur Berechnung des gleitenden Durchschnitts
+def moving_average(data, window):
+    return data.rolling(window=window).mean()
+
+# Marktdaten abrufen
+symbol = 'AAPL'
+barset = api.get_barset(symbol, 'day', limit=100)
+bars = barset[symbol]
+
+# Daten in DataFrame umwandeln
+data = pd.DataFrame({
+    'close': [bar.c for bar in bars]
+})
+
+# Gleitende Durchschnitte berechnen
+data['SMA_20'] = moving_average(data['close'], 20)
+data['SMA_50'] = moving_average(data['close'], 50)
+
+# Handelsstrategie: Kauf, wenn SMA_20 über SMA_50 kreuzt
+if data['SMA_20'].iloc[-1] > data['SMA_50'].iloc[-1]:
+    order = api.submit_order(
+        symbol=symbol,
+        qty=10,
+        side='buy',
+        type='market',
+        time_in_force='gtc'
+    )
+    print(f"Order placed: {order}")
+else:
+    print("No trade signal")
+
+# Verkaufsstrategie: Verkauf, wenn SMA_20 unter SMA_50 kreuzt
+if data['SMA_20'].iloc[-1] < data['SMA_50'].iloc[-1]:
+    order = api.submit_order(
+        symbol=symbol,
+        qty=10,
+        side='sell',
+        type='market',
+        time_in_force='gtc'
+    )
+    print(f"Order placed: {order}")
+else:
+    print("No trade signal")
